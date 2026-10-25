@@ -208,12 +208,13 @@ function patchAttemptReroll( fun )
         -- 原函数开头是 if run.NumRerolls <= 0 then return end，
         -- 所以点数为 0 时根本不会重掷 → 无限Roll 形同虚设。调用前先顶满。
         if infiniteRoll then
-            run.NumRerolls = math.max( tonumber( run.NumRerolls ) or 0, 9 )
+            run.NumRerolls = math.max( tonumber( run.NumRerolls ) or 0, 99 )
+            pcall( UpdateRerollUI, run.NumRerolls )
         end
         local lastRoll = run.NumRerolls
         fun(run, target)
         if infiniteRoll then
-            run.NumRerolls = 9
+            run.NumRerolls = 99
             pcall( UpdateRerollUI, run.NumRerolls )
         else
             run.NumRerolls = lastRoll
@@ -229,12 +230,13 @@ function patchAttemptPanelReroll(fun)
     function newFun(screen, button)
         -- 父函数，照常执行
         if infiniteRoll then
-            CurrentRun.NumRerolls = math.max( tonumber( CurrentRun.NumRerolls ) or 0, 9 )
+            CurrentRun.NumRerolls = math.max( tonumber( CurrentRun.NumRerolls ) or 0, 99 )
+            pcall( UpdateRerollUI, CurrentRun.NumRerolls )
         end
         local lastRoll = CurrentRun.NumRerolls
         fun(screen, button)
         if infiniteRoll then
-            CurrentRun.NumRerolls = 9
+            CurrentRun.NumRerolls = 99
             pcall( UpdateRerollUI, CurrentRun.NumRerolls )
         else
             CurrentRun.NumRerolls = lastRoll
@@ -1177,8 +1179,13 @@ function DebugEnemySpawnButton( screen, button )
 		IsSecretDoorEligible = patchIsSecretDoorEligible(IsSecretDoorEligible)
 	elseif button.EnemyName == '开启无限Roll' then
 		infiniteRoll = true
+		-- 同一个房间内每掷一次 cost 会 +ReuseIncrement，涨价到超过点数就锁死，所以要归零
+		if RerollCosts ~= nil then
+			PreReuseIncrement = RerollCosts.ReuseIncrement
+			RerollCosts.ReuseIncrement = 0
+		end
 		if CurrentRun ~= nil then
-			CurrentRun.NumRerolls = math.max( tonumber( CurrentRun.NumRerolls ) or 0, 9 )
+			CurrentRun.NumRerolls = math.max( tonumber( CurrentRun.NumRerolls ) or 0, 99 )
 			pcall( UpdateRerollUI, CurrentRun.NumRerolls )
 		end
 		AttemptReroll = patchAttemptReroll(AttemptReroll)
@@ -1222,6 +1229,10 @@ function DebugEnemySpawnButton( screen, button )
 		IsSecretDoorEligible = PreIsSecretDoorEligible
 	elseif button.EnemyName == '关闭无限Roll' then
 		infiniteRoll = false
+		if RerollCosts ~= nil and PreReuseIncrement ~= nil then
+			RerollCosts.ReuseIncrement = PreReuseIncrement
+			PreReuseIncrement = nil
+		end
 		AttemptReroll = PreAttemptReroll
 		AttemptPanelReroll = PreAttemptPanelReroll
 	elseif button.EnemyName == '关闭击杀概率掉落祝福' then

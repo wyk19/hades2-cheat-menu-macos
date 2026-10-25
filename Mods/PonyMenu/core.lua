@@ -499,20 +499,52 @@ end
 -- HERMES FIX: 改稀有度时保持该祝福在 CurrentRun.Hero.Traits 里的原位置。
 -- 游戏原做法是 RemoveWeaponTrait + AddTraitToHero，AddTraitData 用 table.insert 追加，
 -- 所以被改的祝福会跳到列表最后。这里先记下索引，重加后再挪回原位。
+-- 等级/稀有度修改在游戏内部都是 "RemoveTrait → AddTraitToHero"，会把这个祝福从数组里删掉
+-- 再追加到末尾，所以列表里看就是"跳到最后一个"。这里统一：先记住原顺序，操作完按旧顺序排回去。
+function mod.CaptureTraitOrder( )
+	local traits = CurrentRun and CurrentRun.Hero and CurrentRun.Hero.Traits
+	if traits == nil then return nil end
+	local order = { }
+	for i, trait in ipairs( traits ) do
+		order[ trait.Name ] = i
+	end
+	return order
+end
+
+function mod.RestoreTraitOrder( order )
+	local traits = CurrentRun and CurrentRun.Hero and CurrentRun.Hero.Traits
+	if traits == nil or order == nil then return end
+	table.sort( traits, function( a, b )
+		local ai = order[ a.Name ]
+		local bi = order[ b.Name ]
+		if ai ~= nil and bi ~= nil then return ai < bi end
+		if ai ~= nil then return true end
+		if bi ~= nil then return false end
+		return false
+	end )
+end
+
+function mod.WithTraitOrder( fn )
+	local order = mod.CaptureTraitOrder( )
+	local ok, err = pcall( fn )
+	mod.RestoreTraitOrder( order )
+	if not ok then
+		print( "PonyMenu trait op failed: " .. tostring( err ) )
+	end
+end
+
 function mod.SetTraitRarityInPlace( traitName, rarity )
 	local traits = CurrentRun and CurrentRun.Hero and CurrentRun.Hero.Traits
 	if traits == nil then return end
 
-	local index = nil
+	local order = mod.CaptureTraitOrder( )
 	local stackNum = nil
-	for i, trait in ipairs( traits ) do
+	for _, trait in ipairs( traits ) do
 		if trait.Name == traitName then
-			index = i
 			stackNum = trait.StackNum
 			break
 		end
 	end
-	if index == nil then return end
 
 	RemoveWeaponTrait( traitName )
 	AddTraitToHero({
@@ -528,17 +560,7 @@ function mod.SetTraitRarityInPlace( traitName, rarity )
 		SkipAddToHUD = true
 	})
 
-	local newIndex = nil
-	for i, trait in ipairs( traits ) do
-		if trait.Name == traitName then
-			newIndex = i
-			break
-		end
-	end
-	if newIndex ~= nil and newIndex ~= index then
-		local moved = table.remove( traits, newIndex )
-		table.insert( traits, index, moved )
-	end
+	mod.RestoreTraitOrder( order )
 end
 
 -- HERMES: 调试/追踪通道（先写日志，io 可用时同时写文件）

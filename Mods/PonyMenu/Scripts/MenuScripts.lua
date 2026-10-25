@@ -562,7 +562,7 @@ mod.CheatDefs = {
 	  Desc = "出口必定出现混沌之门" },
 	{ Id = "roll",     Name = "无限重掷", Kind = "toggle",
 	  On = "开启无限Roll", Off = "关闭无限Roll",
-	  Desc = "开启即给 9 点重掷，且重掷不消耗（点数为 0 也能掷）" },
+	  Desc = "开启即补满重掷点数（99），同房间内不涨价，点数归零也能继续掷" },
 	{ Id = "boondrop", Name = "击杀掉祝福", Kind = "toggle",
 	  On = "击杀加1%概率掉落祝福", Off = "关闭击杀概率掉落祝福",
 	  Desc = "每次开启叠加 1% 击杀掉落祝福概率" },
@@ -1158,7 +1158,7 @@ function mod.HandleBoonManagerClick(screen, button)
 					local traitData = GetHeroTrait(name)
 					local stacks = GetTraitCount(name)
 					stacks = stacks + 1
-					IncreaseTraitLevel(traitData, stacks)
+					mod.WithTraitOrder( function( ) IncreaseTraitLevel(traitData, stacks) end )
 				end
 			end
 			mod.BoonManagerReloadPage(screen)
@@ -1178,7 +1178,7 @@ function mod.HandleBoonManagerClick(screen, button)
 					local traitData = GetHeroTrait(name)
 					local stacks = GetTraitCount(name)
 					stacks = stacks - 1
-					IncreaseTraitLevel(traitData, stacks)
+					mod.WithTraitOrder( function( ) IncreaseTraitLevel(traitData, stacks) end )
 				end
 			end
 			return
@@ -1262,7 +1262,7 @@ function mod.HandleBoonManagerClick(screen, button)
 				local traitData = GetHeroTrait(button.Boon.Name)
 				local stacks = GetTraitCount(CurrentRun.Hero, button.Boon.Name)
 				stacks = stacks + 1
-				IncreaseTraitLevel(traitData, stacks)
+				mod.WithTraitOrder( function( ) IncreaseTraitLevel(traitData, stacks) end )
 				mod.BoonManagerReloadPage(screen)
 			end
 			return
@@ -1271,7 +1271,7 @@ function mod.HandleBoonManagerClick(screen, button)
 				local traitData = GetHeroTrait(button.Boon.Name)
 				local stacks = GetTraitCount(button.Boon.Name)
 				stacks = stacks - 1
-				IncreaseTraitLevel(traitData, stacks)
+				mod.WithTraitOrder( function( ) IncreaseTraitLevel(traitData, stacks) end )
 				mod.BoonManagerReloadPage(screen)
 			end
 			return
