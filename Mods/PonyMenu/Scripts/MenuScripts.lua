@@ -8,6 +8,7 @@ function mod.OpenBoonSelector(screen, button)
 	if IsScreenOpen("BoonSelector") then
 		return
 	end
+	mod.ClearHighlights( )
 	mod.UpdateScreenData()
 	CloseInventoryScreen(screen, screen.ComponentData.ActionBar.Children.CloseButton)
 
@@ -99,6 +100,7 @@ function mod.OpenBoonSelector(screen, button)
 end
 
 function mod.CloseBoonSelector(screen)
+	mod.ClearHighlights( )
 	SetConfigOption({ Name = "ExclusiveInteractGroup", Value = nil })
 	OnScreenCloseStarted(screen)
 	CloseScreen(GetAllIds(screen.Components), 0.15)
@@ -416,6 +418,7 @@ function mod.OpenResourceMenu(screen, button)
 	if IsScreenOpen("ResourceMenu") then
 		return
 	end
+	mod.ClearHighlights( )
 	mod.UpdateScreenData()
 
 	screen = DeepCopyTable(ScreenData.ResourceMenu)
@@ -506,6 +509,7 @@ function mod.OpenResourceMenu(screen, button)
 end
 
 function mod.CloseResourceMenu(screen)
+	mod.ClearHighlights( )
 	SetConfigOption({ Name = "ExclusiveInteractGroup", Value = nil })
 	OnScreenCloseStarted(screen)
 	CloseScreen(GetAllIds(screen.Components), 0.15)
@@ -914,6 +918,7 @@ function mod.OpenBoonManager(screen, button)
 	if IsScreenOpen("BoonManager") then
 		return
 	end
+	mod.ClearHighlights( )
 	-- mod.UpdateScreenData()
 
 	screen = DeepCopyTable(ScreenData.BoonSelector)
@@ -1706,23 +1711,28 @@ function mod.MouseOverBoonButton(button)
 
 	GenericMouseOverPresentation(button)
 
-	local components = screen.Components
-	local buttonHighlight = CreateScreenComponent({
-		Name = "InventorySlotHighlight",
-		Scale = 1.0,
-		Group =
-		"Combat_Menu_Overlay",
-		DestinationId = button.Id
-	})
-	components.InventorySlotHighlight = buttonHighlight
-	button.HighlightId = buttonHighlight.Id
-	Attach({ Id = buttonHighlight.Id, DestinationId = button.Id })
+		-- 用游戏原生的祝福卡高亮：BoonSlotHighlight（BoonHighlightIn/Out + 微光），
+	-- 就是祝福选择器/武器强化界面悬停时那圈光。原来这里用的 "InventorySlotHighlight"
+	-- 在游戏里根本不存在（Content 全文 0 定义），引擎会画成默认方块 → 绿框。
+	if button.HighlightId == nil then
+		local buttonHighlight = CreateScreenComponent({
+			Name = "BoonSlotHighlight",
+			Group = "Combat_Menu_Overlay_Additive",
+			Scale = 1.0,
+			DestinationId = button.Id,
+		})
+		Attach({ Id = buttonHighlight.Id, DestinationId = button.Id })
+		button.HighlightId = buttonHighlight.Id
+		mod.ActiveHighlights = mod.ActiveHighlights or { }
+		table.insert( mod.ActiveHighlights, buttonHighlight.Id )
+	end
+	SetAnimation({ DestinationId = button.HighlightId, Name = "BoonHighlightIn" })
 end
 
 function mod.MouseOffBoonButton(button)
-	Destroy({ Id = button.HighlightId })
-	local components = button.Screen.Components
-	components.InventorySlotHighlight = nil
+	if button.HighlightId ~= nil then
+		SetAnimation({ DestinationId = button.HighlightId, Name = "BoonHighlightOut" })
+	end
 	SetScale({ Id = button.Id, Fraction = 1.0, Duration = 0.1, SkipGeometryUpdate = true })
 	StopFlashing({ Id = button.Id })
 end
@@ -1735,6 +1745,7 @@ function mod.OpenBossSelector()
 	if IsScreenOpen("BossSelector") then
 		return
 	end
+	mod.ClearHighlights( )
 
 	local screen = DeepCopyTable(ScreenData.BossSelector)
 	screen.SelectedGod = mod.Data.SelectedGod or "No God selected"
@@ -1859,6 +1870,7 @@ function mod.HandleBossSelection(screen, button)
 end
 
 function mod.CloseBossSelectScreen(screen)
+	mod.ClearHighlights( )
 	ShowCombatUI(screen.Name)
 	SetConfigOption({ Name = "ExclusiveInteractGroup", Value = nil })
 	OnScreenCloseStarted(screen)
@@ -1875,6 +1887,7 @@ function mod.OpenConsumableSelector()
 	if IsScreenOpen("ConsumableSelector") then
 		return
 	end
+	mod.ClearHighlights( )
 	mod.UpdateScreenData()
 
 	local screen = DeepCopyTable(ScreenData.ConsumableSelector)
@@ -1976,6 +1989,7 @@ function mod.OpenConsumableSelector()
 end
 
 function mod.CloseConsumableSelector(screen)
+	mod.ClearHighlights( )
 	ShowCombatUI(screen.Name)
 	SetConfigOption({ Name = "ExclusiveInteractGroup", Value = nil })
 	OnScreenCloseStarted(screen)

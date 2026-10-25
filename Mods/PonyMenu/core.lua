@@ -378,6 +378,12 @@ function mod.mouseOverCommandItem(button)
 
 	GenericMouseOverPresentation(button)
 
+	-- 先清掉上一次的高亮，避免连续悬停堆出多个框（残留的绿框就是这么来的）
+	if button.HighlightId ~= nil then
+		pcall( Destroy, { Id = button.HighlightId } )
+		button.HighlightId = nil
+	end
+
 	local components = screen.Components
 
 	-- HERMES: 主菜单（幻驹菜单）的高亮。原来的 "InventorySlotHighlight" 组件在游戏里
@@ -420,10 +426,11 @@ end
 function mod.mouseOffCommandItem(button)
 	if button.HighlightId ~= nil then
 		local highlightId = button.HighlightId
-		SetAnimation({ DestinationId = highlightId, Name = "InventoryScreenSlotOut" })
+		button.HighlightId = nil
+		pcall( SetAnimation, { DestinationId = highlightId, Name = "InventoryScreenSlotOut" } )
 		thread( function( )
 			wait( 0.2 )
-			Destroy({ Id = highlightId })
+			pcall( Destroy, { Id = highlightId } )
 		end )
 	end
 	local components = button.Screen.Components
@@ -471,6 +478,7 @@ function mod.ExtraSelectorLoadPage( screen )
 end
 
 function mod.Command(screen, button)
+	mod.ClearHighlights( )
 	local command = button.ItemData
 	if command.Type == "Boon" then
 		mod.OpenBoonSelector(screen, button)
