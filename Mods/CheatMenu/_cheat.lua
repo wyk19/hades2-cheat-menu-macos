@@ -52,6 +52,7 @@ end
 
 
 AddRerolled = false
+infiniteRollFloor = nil
 curExtraRushCount = extraRushCount
 -- 每轮游戏刚开始时进行的操作
 function patchEachRun(fun)
@@ -204,46 +205,47 @@ end
 -- Roll祝福
 function patchAttemptReroll( fun )
     function newFun(run, target)
-        -- 父函数，照常执行
-        -- 原函数开头是 if run.NumRerolls <= 0 then return end，
-        -- 所以点数为 0 时根本不会重掷 → 无限Roll 形同虚设。调用前先顶满。
+        -- 门/奖励重掷：原函数里 cost 硬编码为 1，扣掉后再还回去，HUD 上始终是你真实持有的点数。
+        -- 另外原函数开头是 if run.NumRerolls <= 0 then return end，0 点时要临时垫 1 才能掷得动。
+        local original = tonumber( run.NumRerolls ) or 0
         if infiniteRoll then
-            run.NumRerolls = math.max( tonumber( run.NumRerolls ) or 0, 99 )
-            pcall( UpdateRerollUI, run.NumRerolls )
+            infiniteRollFloor = infiniteRollFloor or math.max( original, 1 )
+            if original <= 0 then
+                run.NumRerolls = infiniteRollFloor
+            end
         end
-        local lastRoll = run.NumRerolls
         fun(run, target)
         if infiniteRoll then
-            run.NumRerolls = 99
+            run.NumRerolls = math.max( infiniteRollFloor or 0, original )
             pcall( UpdateRerollUI, run.NumRerolls )
         else
-            run.NumRerolls = lastRoll
+            run.NumRerolls = original
         end
 		if trait and trait.MetaConversionUses then
 			trait.MetaConversionUses = 99
-		end 
+		end
     end
 	return newFun
 end
 -- Roll 门
 function patchAttemptPanelReroll(fun)
     function newFun(screen, button)
-        -- 父函数，照常执行
-        if infiniteRoll then
-            CurrentRun.NumRerolls = math.max( tonumber( CurrentRun.NumRerolls ) or 0, 99 )
-            pcall( UpdateRerollUI, CurrentRun.NumRerolls )
+        -- 面板重掷（祝福/锤子选择界面）：把本次 cost 归 0，游戏就不会扣点数，
+        -- HUD 显示永远停在你的真实点数上，也不会触发同房间涨价。
+        if infiniteRoll and button ~= nil then
+            button.Cost = 0
         end
         local lastRoll = CurrentRun.NumRerolls
         fun(screen, button)
         if infiniteRoll then
-            CurrentRun.NumRerolls = 99
+            CurrentRun.NumRerolls = math.max( infiniteRollFloor or 0, tonumber( CurrentRun.NumRerolls ) or 0 )
             pcall( UpdateRerollUI, CurrentRun.NumRerolls )
         else
             CurrentRun.NumRerolls = lastRoll
         end
 		if trait and trait.MetaConversionUses then
 			trait.MetaConversionUses = 99
-		end 
+		end
     end
 	return newFun
 end
@@ -1185,8 +1187,7 @@ function DebugEnemySpawnButton( screen, button )
 			RerollCosts.ReuseIncrement = 0
 		end
 		if CurrentRun ~= nil then
-			CurrentRun.NumRerolls = math.max( tonumber( CurrentRun.NumRerolls ) or 0, 99 )
-			pcall( UpdateRerollUI, CurrentRun.NumRerolls )
+			infiniteRollFloor = math.max( tonumber( CurrentRun.NumRerolls ) or 0, 1 )
 		end
 		AttemptReroll = patchAttemptReroll(AttemptReroll)
 		AttemptPanelReroll = patchAttemptPanelReroll(AttemptPanelReroll)
@@ -1229,6 +1230,7 @@ function DebugEnemySpawnButton( screen, button )
 		IsSecretDoorEligible = PreIsSecretDoorEligible
 	elseif button.EnemyName == '关闭无限Roll' then
 		infiniteRoll = false
+		infiniteRollFloor = nil
 		if RerollCosts ~= nil and PreReuseIncrement ~= nil then
 			RerollCosts.ReuseIncrement = PreReuseIncrement
 			PreReuseIncrement = nil

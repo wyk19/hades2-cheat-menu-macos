@@ -562,7 +562,7 @@ mod.CheatDefs = {
 	  Desc = "出口必定出现混沌之门" },
 	{ Id = "roll",     Name = "无限重掷", Kind = "toggle",
 	  On = "开启无限Roll", Off = "关闭无限Roll",
-	  Desc = "开启即补满重掷点数（99），同房间内不涨价，点数归零也能继续掷" },
+	  Desc = "重掷不消耗点数：HUD 始终显示你当前持有数（0 点也能掷）" },
 	{ Id = "boondrop", Name = "击杀掉祝福", Kind = "toggle",
 	  On = "击杀加1%概率掉落祝福", Off = "关闭击杀概率掉落祝福",
 	  Desc = "每次开启叠加 1% 击杀掉落祝福概率" },
