@@ -205,9 +205,19 @@ end
 function patchAttemptReroll( fun )
     function newFun(run, target)
         -- 父函数，照常执行
-        local lastRoll = run.NumRerolls 
+        -- 原函数开头是 if run.NumRerolls <= 0 then return end，
+        -- 所以点数为 0 时根本不会重掷 → 无限Roll 形同虚设。调用前先顶满。
+        if infiniteRoll then
+            run.NumRerolls = math.max( tonumber( run.NumRerolls ) or 0, 9 )
+        end
+        local lastRoll = run.NumRerolls
         fun(run, target)
-        run.NumRerolls = lastRoll
+        if infiniteRoll then
+            run.NumRerolls = 9
+            pcall( UpdateRerollUI, run.NumRerolls )
+        else
+            run.NumRerolls = lastRoll
+        end
 		if trait and trait.MetaConversionUses then
 			trait.MetaConversionUses = 99
 		end 
@@ -218,9 +228,17 @@ end
 function patchAttemptPanelReroll(fun)
     function newFun(screen, button)
         -- 父函数，照常执行
-        local lastRoll = CurrentRun.NumRerolls 
+        if infiniteRoll then
+            CurrentRun.NumRerolls = math.max( tonumber( CurrentRun.NumRerolls ) or 0, 9 )
+        end
+        local lastRoll = CurrentRun.NumRerolls
         fun(screen, button)
-        CurrentRun.NumRerolls = lastRoll
+        if infiniteRoll then
+            CurrentRun.NumRerolls = 9
+            pcall( UpdateRerollUI, CurrentRun.NumRerolls )
+        else
+            CurrentRun.NumRerolls = lastRoll
+        end
 		if trait and trait.MetaConversionUses then
 			trait.MetaConversionUses = 99
 		end 
@@ -1159,6 +1177,10 @@ function DebugEnemySpawnButton( screen, button )
 		IsSecretDoorEligible = patchIsSecretDoorEligible(IsSecretDoorEligible)
 	elseif button.EnemyName == '开启无限Roll' then
 		infiniteRoll = true
+		if CurrentRun ~= nil then
+			CurrentRun.NumRerolls = math.max( tonumber( CurrentRun.NumRerolls ) or 0, 9 )
+			pcall( UpdateRerollUI, CurrentRun.NumRerolls )
+		end
 		AttemptReroll = patchAttemptReroll(AttemptReroll)
 		AttemptPanelReroll = patchAttemptPanelReroll(AttemptPanelReroll)
 	elseif button.EnemyName == '击杀加1%概率掉落祝福' then
