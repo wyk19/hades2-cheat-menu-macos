@@ -414,6 +414,9 @@ end
 
 --#region RESOURCE MENU
 
+-- 材料菜单里的伪资源 id
+mod.RerollResourceName = "__REROLL_POINTS__"
+
 function mod.OpenResourceMenu(screen, button)
 	if IsScreenOpen("ResourceMenu") then
 		return
@@ -433,8 +436,12 @@ function mod.OpenResourceMenu(screen, button)
 	CreateScreenFromData(screen, screen.ComponentData)
 	--Display
 	local displayedResources = {}
-	local index = 0
-	screen.ResourceList = {}
+	-- 伪资源：重掷点数。它不是 ResourceData 的条目，走下面的特殊分支，放进网格第一格。
+	screen.ResourceList = {
+		[0] = { { index = 1, name = mod.RerollResourceName, pageIndex = 0,
+		          offsetX = screen.RowStartX, offsetY = screen.RowStartY } },
+	}
+	local index = 1
 	for _, category in ipairs(ScreenData.InventoryScreen.ItemCategories) do
 		for k, resource in ipairs(category) do
 			if type(resource) == 'string' and not Contains(displayedResources, resource) then
@@ -519,7 +526,11 @@ end
 
 function mod.ChangeTargetResource(screen, button)
 	screen.Resource = button.Resource
-	ModifyTextBox({ Id = screen.Components.ResourceTextbox.Id, Text = button.Resource })
+	local label = button.Resource
+	if button.Resource == mod.RerollResourceName then
+		label = "重掷点数"
+	end
+	ModifyTextBox({ Id = screen.Components.ResourceTextbox.Id, Text = label })
 end
 
 function mod.ChangeTargetResourceAmount(screen, button)
@@ -533,6 +544,19 @@ end
 
 function mod.SpawnResource(screen, button)
 	if screen.Resource == "None" or screen.Amount == 0 then
+		return
+	end
+
+	-- 重掷点数不是资源，直接改 run.NumRerolls
+	if screen.Resource == mod.RerollResourceName then
+		if CurrentRun == nil then return end
+		local before = tonumber( CurrentRun.NumRerolls ) or 0
+		local after = math.max( 0, before + screen.Amount )
+		CurrentRun.NumRerolls = after
+		pcall( UpdateRerollUI, after )
+		if infiniteRoll then
+			infiniteRollFloor = math.max( after, 1 )
+		end
 		return
 	end
 
@@ -871,6 +895,17 @@ function mod.ResourceMenuLoadPage(screen)
 				screen.Components[purchaseButtonKey].Index = resourceData.index
 
 				local data = ResourceData[resourceData.name]
+				if data == nil then
+					if resourceData.name == mod.RerollResourceName then
+						data = { IconPath = "RerollIcon", IconScale = 0.45 }
+					else
+						data = { IconScale = 0.5 }
+					end
+				end
+				local displayName = resourceData.name
+				if resourceData.name == mod.RerollResourceName then
+					displayName = "重掷点数"
+				end
 				local icon = {
 					Name = "BlankObstacle",
 					Animation = data.IconPath or data.Icon,
@@ -888,7 +923,7 @@ function mod.ResourceMenuLoadPage(screen)
 				})
 				CreateTextBox({
 					Id = screen.Components[purchaseButtonKey].Id,
-					Text = resourceData.name,
+					Text = displayName,
 					FontSize = 22,
 					OffsetX = 0,
 					OffsetY = -5,
